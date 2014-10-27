@@ -2,12 +2,14 @@ Lesson 5
 ========================================================
 
 ### Multivariate Data
-Notes:
+Notes: Comparing data using 3 or more variables
 
 ***
 
 ### Moira Perceived Audience Size Colored by Age
-Notes:
+Notes: Methods of adding more degrees: Color?
+
+Plot may not reveal anything at all.
 
 ***
 
@@ -15,8 +17,15 @@ Notes:
 Notes:
 
 ```{r Third Qualitative Variable}
+library('ggplot2')
+pf <- read.csv('pseudo_facebook.tsv', sep='\t')
 ggplot(aes(x = gender, y = age),
-       data = subset(pf, !is.na(gender))) + geom_histogram()
+       data = subset(pf, !is.na(gender))) + geom_boxplot() +
+  stat_summary(fun.y=mean, geom='point', shape=4)
+
+ggplot(aes(x = age, y = friend_count),
+       data = subset(pf, !is.na(gender))) +
+  geom_line(aes(color=gender), stat="summary", fun.y=median)
 ```
 
 ***
@@ -25,7 +34,36 @@ ggplot(aes(x = gender, y = age),
 Notes:
 
 ```{r Plotting Conditional Summaries}
+library("dplyr")
 
+pf.fc_by_age_gender <- pf %.%
+  group_by(age, gender) %.%
+  summarize(mean_friend_count = mean(friend_count),
+            median_friend_count = median(friend_count),
+            n = n()) %.%
+  arrange(age, gender)
+
+pf.fc_by_age_gender <- subset(pf, !is.na(gender)) %.%
+  group_by(age, gender) %.%
+  summarize(mean_friend_count = mean(friend_count),
+            median_friend_count = median(friend_count),
+            n = n()) %.%
+  arrange(age, gender)
+
+pf.fc_by_age_gender <- ungroup(pf.fc_by_age_gender)
+
+# Instructor Method:
+pf.fc_by_age_gender <- pf %.%
+  filter(!is.na(gender)) %.%
+  group_by(age, gender) %.%
+  summarize(mean_friend_count = mean(friend_count),
+            median_friend_count = median(friend_count),
+            n = n()) %.%
+  ungroup() %.%
+  arrange(age)
+
+ggplot(aes(y=median_friend_count, x=age), data=pf.fc_by_age_gender) +
+  geom_line(aes(color=gender))
 ```
 
 ***
@@ -36,7 +74,7 @@ Notes:
 ***
 
 ### Wide and Long Format
-Notes:
+Notes: 
 
 ***
 
@@ -44,8 +82,16 @@ Notes:
 Notes:
 
 ```{r}
-install.packages('reshape2')
+# install.packages('reshape2')
 library(reshape2)
+
+pf.fc_by_age_gender.wide <- dcast(pf.fc_by_age_gender,
+                                 age ~ gender,
+                                 value.var  = "median_friend_count")
+
+ggplot(data=pf.fc_by_age_gender.wide) +
+  geom_line(aes(x=age, y=(female/male), color="pink")) +
+  geom_hline(yintercept=1, color="black", linetype=2, alpha=.3)
 ```
 
 
@@ -64,7 +110,7 @@ Notes:
 Notes:
 
 ```{r Third Quantitative Variable}
-
+pf$year_joined <- 2014 - ceiling((pf$tenure/365))
 ```
 
 ***
@@ -73,7 +119,7 @@ Notes:
 Notes:
 
 ```{r Cut a Variable}
-
+pf$year_joined.bucket <- cut(pf$year_joined, breaks=c(2004,2009,2011,2012,2014)) # (2004,2009],(2010,2011] ...
 ```
 
 ***
@@ -82,7 +128,8 @@ Notes:
 Notes:
 
 ```{r Plotting it All Together}
-
+ggplot(aes(x=age, y=friend_count), data=subset(pf, !is.na(year_joined.bucket))) + 
+  geom_line(aes(color=year_joined.bucket), stat='summary', fun.y=median )
 ```
 
 ***
@@ -91,6 +138,9 @@ Notes:
 Notes:
 
 ```{r Plot the Grand Mean}
+ggplot(aes(x=age, y=friend_count), data=subset(pf, !is.na(year_joined.bucket))) + 
+  geom_line(aes(color=year_joined.bucket), stat='summary', fun.y=mean ) + 
+  geom_line(linetype=2, stat='summary', fun.y=mean)
 
 ```
 
@@ -100,6 +150,8 @@ Notes:
 Notes:
 
 ```{r Friending Rate}
+pf$friend_rate <- (pf$friend_count / pf$tenure)
+with(subset(pf, tenure > 0), summary(friend_count / tenure))
 
 ```
 
@@ -109,11 +161,12 @@ Notes:
 Notes:
 
 What is the median friend rate?
-
+.22
 What is the maximum friend rate?
-
+417.0
 ```{r Friendships Initiated}
-
+ggplot(aes(x=tenure, y=(friendships_initiated / tenure)), data=subset(pf, tenure>0)) + 
+  geom_line(aes(color=year_joined.bucket), stat='summary', fun.y=mean)
 ```
 
 ***
@@ -147,6 +200,10 @@ ggplot(aes(x = 90 * round(tenure / 90), y = friendships_initiated / tenure),
             stat = "summary",
             fun.y = mean)
 
+ggplot(aes(x = tenure, y = friendships_initiated / tenure),
+       data = subset(pf, tenure > 0)) +
+  geom_smooth(aes(color = year_joined.bucket))
+
 ```
 
 ***
@@ -165,7 +222,16 @@ Notes:
 Notes:
 
 ```{r Histograms Revisited}
+yo <- read.csv("yogurt.csv")
+str(yo)
 
+ggplot(aes(price), data=yo) +
+  geom_histogram(binwidth=10)
+
+summary(yo)
+unique(yo$price)
+length(unique(yo$price))
+table(yo$price)
 ```
 
 ***
@@ -175,6 +241,7 @@ Notes:
 
 ```{r Number of Purchases}
 
+yo <- transform(yo, all.purchases = strawberry + blueberry + pina.colada + plain + mixed.berry)
 ```
 
 ***
@@ -183,7 +250,8 @@ Notes:
 Notes:
 
 ```{r Prices over Time}
-
+ggplot(aes(x=time, y=price), data=yo) +
+  geom_point(alpha=.05)
 ```
 
 ***
@@ -196,24 +264,48 @@ Notes:
 ### Looking at Samples of Households
 
 ```{r Looking at Sample of Households}
+library(dplyr)
+set.seed(seed=8896)
+sample.ids <- sample(levels(yo$id), 16)
+
+ggplot(aes(x=time, y=price), 
+       data=subset(yo, id %in% sample.ids)) + 
+  facet_wrap(~ id) + 
+  geom_line() + 
+  geom_point(aes(size = all.purchases), pch=1)
+
+ggsave('facetHouse.png')
+
 
 ```
-
+In my plot subset I seem to have about a third of the graphs have examples of decreasing price through time, but the overall tendency is is for most of the points to be clustered around 60 for the whole duration. On the other hand, those with prices focused around 60, they almost all show examples of sharp price decreases for specific dates, seeming to indicated as mentioned, maybe specific sales.
 ***
 
 ### The Limits of Cross Sectional Data
-Notes:
+Notes: Good for instances of categorical variables over time
 
 ***
 
 ### Many Variables
-Notes:
+Notes: Might be able to iterate over different variable correspondences to discover relationship where none were thought to exist before
 
 ***
 
 ### Scatterplot Matrix
 Notes:
+Iterates over all pairs of variables to potentially unearth relationships with graphs
 
+```{r}
+install.packages('GGally')
+library(GGally)
+theme_set(theme_minimal(20))
+pf<-read.csv('pseudo_facebook.tsv', sep='\t')
+set_seed(1836)
+pf_subset <- pf[ , c(2:7)]
+names(pf_subset)
+# ggpairs(pf_subset[sample.int(nrow(pf_subset), 1000), ])
+ggpairs(pf_subset[sample.int(99003, 1000), ])
+```
 ***
 
 ### Even More Variables
@@ -230,6 +322,8 @@ colnames(nci) <- c(1:64)
 ```
 
 ```{r}
+library('dplyr')
+library('reshape2')
 nci.long.samp <- melt(as.matrix(nci[1:200,]))
 names(nci.long.samp) <- c("gene", "case", "value")
 head(nci.long.samp)
